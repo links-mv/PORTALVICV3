@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Portal VIC | VLI</title>
+
+    <meta name="theme-color" content="#0085B2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="icon" type="image/png" sizes="192x192" href="logo-pwa.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="logo-pwa.png">
+    <link rel="manifest" href="./manifest.json">
+
+    <style>
+        :root {
+            --vli-azul: #0085B2;
+            --vli-azul-escuro: #005f83;
+            --vli-laranja: #F37021;
+            --vli-verde: #24b34b;
+            --vli-erro: #e13d4b;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+            --shadow-md: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            color: #FFFFFF;
+        }
+
+        body {
+            background: var(--vli-azul-escuro);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--vli-azul);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0,0,0,0.3);
+            z-index: 2;
+            position: relative;
+        }
+
+        .pwa-banner { display: none; background: #ffffff; padding: 16px; margin: 20px 20px 0 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-md); border-left: 5px solid var(--vli-laranja); animation: fadeIn 0.5s ease; }
+        .pwa-banner p { color: #1E293B; margin: 0 0 12px 0; font-size: 13px; font-weight: 600; text-align: center; line-height: 1.5; }
+        .pwa-banner p span { color: #64748B; font-size: 12px; display: block; font-weight: 400; margin-top: 4px;}
+        .pwa-banner button { width: 100%; padding: 12px; border: none; background: var(--vli-laranja); color: white; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .header { padding: 60px 24px 20px; text-align: center; }
+        .logo-box { background: white; padding: 14px 22px; border-radius: var(--radius-md); display: inline-block; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+        .logo { width: 90px; display: block; }
+        .header-title { font-weight: 800; letter-spacing: 1.5px; font-size: 20px; text-transform: uppercase; opacity: 0.95; }
+        .user-pill { background: rgba(255, 255, 255, 0.1); margin: 15px 28px 0; padding: 14px 20px; border-radius: var(--radius-md); font-size: 14px; text-align: center; display: none; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); }
+
+        .content { padding: 32px 28px; flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-start; }
+
+        .step { display: none; width: 100%; }
+        .step.active { display: flex; flex-direction: column; gap: 15px; animation: fadeIn 0.4s ease-out; }
+        .step.active > div { margin-bottom: 5px; }
+
+        /* Classes reutilizáveis para formularios (evita repetir o mesmo style inline em cada bloco) */
+        .form-col { display: flex; flex-direction: column; gap: 20px; }
+        .list-col { display: flex; flex-direction: column; gap: 12px; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h3 { font-weight: 700; font-size: 22px; margin: 0 0 10px 0; text-align: center; }
+        label { display: block; font-weight: 700; margin: 0 0 8px 2px; font-size: 11px; color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 0.8px; }
+
+        /* CORREÇÃO DO BUG DO IOS: min-width: 0 e box-sizing garantem que o WebKit obedeça a grid */
+        input, select, textarea {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            background: #fff;
+            color: #1E293B;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+        input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 4px rgba(255,255,255,0.3); }
+
+        /* Corrige texto invisível nas opções dos <select> (herdavam branco do seletor "*" e ficavam
+           brancas sobre o fundo branco da lista suspensa nativa) */
+        option { color: #1E293B; }
+
+        /* Corrige os títulos em negrito da tela "Minhas Férias" que também herdavam branco
+           e ficavam invisíveis sobre o fundo branco do info-box */
+        #detalhe-ferias b { color: var(--vli-azul); }
+
+        input[type="date"], input[type="time"] {
+            font-size: 14px;
+            padding: 16px 10px;
+            -webkit-appearance: none;
+        }
+
+        /* Container CSS Grid imune ao bug de sobreposição de colunas no Safari Mobile */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+        }
+        .grid-2col > div {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .btn { width: 100%; padding: 18px; border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s ease; display: inline-flex; justify-content: center; align-items: center; margin-top: 10px; }
+        .btn:active { transform: scale(0.98); opacity: 0.95; }
+        .btn-orange { background: var(--vli-laranja); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .btn-back { background: transparent; color: white; font-size: 12px; border: 1.5px solid rgba(255,255,255,0.3); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .menu-card { background: #fff; border: none; padding: 26px 16px; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; transition: all 0.25s ease; box-shadow: var(--shadow-sm); }
+        .menu-card b { font-weight: 700; font-size: 14px; color: #1E293B; }
+
+        .cart-item { background: #fff; padding: 16px; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--vli-laranja); box-shadow: var(--shadow-sm); margin-bottom: 10px; }
+        .info-box { background: #fff; padding: 20px; border-radius: var(--radius-md); color: #1E293B; font-size: 14px; line-height: 1.6; margin-top: 10px; }
+        .watermark { text-align: center; padding: 40px 0 25px; font-size: 10px; font-weight: 600; color: rgba(255, 255, 255, 0.35); text-transform: uppercase; letter-spacing: 1px; pointer-events: none; margin-top: auto; }
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,133,178,0.9); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .spinner { border: 3px solid rgba(255,255,255,0.2); border-top: 3px solid #fff; border-radius: 50%; width: 36px; height: 36px; animation: spin 0.7s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .hist-item { background: #fff; padding: 16px; border-radius: var(--radius-md); font-size: 13px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 6px; }
+        .hist-item b { color: #1E293B; }
+        .hist-item span { color: #64748B; line-height: 1.4; }
+        .empty-msg { font-size: 13px; color: rgba(255,255,255,0.8); text-align: center; padding: 20px 0; }
+
+        /* ===== LAYOUT DESKTOP =====
+           Em telas largas (PC/notebook), o app passa a ser exibido como um "cartão" de
+           celular centralizado, com moldura e sombra — em vez de uma faixa esticada
+           colada do topo até o rodapé da tela. Nada aqui altera o comportamento em
+           celulares (essas regras só valem a partir de 700px de largura). */
+        @media (min-width: 700px) {
+            body {
+                align-items: center;
+                padding: 40px 20px;
+                background:
+                    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06), transparent 45%),
+                    radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05), transparent 45%),
+                    var(--vli-azul-escuro);
+            }
+            .container {
+                min-height: min(860px, calc(100vh - 80px));
+                max-height: calc(100vh - 80px);
+                border-radius: 32px;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="install-banner" class="pwa-banner">
+        <p id="install-text">Instale o Portal VIC no seu celular <span>Acesse rápido e economize dados do seu plano</span></p>
+        <button id="install-button" onclick="triggerPwaInstall()">Baixar Aplicativo</button>
+    </div>
+
+    <div class="header">
+        <div class="logo-box">
+            <img src="logo-pwa.png" class="logo" alt="Portal VIC">
+        </div>
+        <div class="header-title">Portal VIC</div>
+    </div>
+
+    <div id="user-pill" class="user-pill"></div>
+
+    <div class="content">
+        <div id="step-start" class="step active" style="text-align:center;">
+            <p style="color: rgba(255,255,255,0.9); font-size: 16px; margin: 0 0 10px 0; font-weight: 500; line-height: 1.5;">Bem-vindo ao Portal VLI - VIC.</p>
+            <button class="btn btn-orange" onclick="initSystem()">Acessar Portal</button>
+        </div>
+
+        <div id="step-login" class="step">
+            <h3>Identificação</h3>
+            <p style="text-align: center; color: rgba(255,255,255,0.8); font-size: 14px; margin: -10px 0 10px 0;">Insira sua matrícula para continuar.</p>
+            <label>Matrícula</label>
+            <input type="tel" id="input-mat" placeholder="Ex: 12345" maxlength="8">
+            <button class="btn btn-orange" onclick="handleLogin()">Entrar no Sistema</button>
+        </div>
+
+        <div id="step-menu" class="step">
+            <div class="menu-grid">
+                <div class="menu-card" onclick="goTo('step-epi')"><span>📦</span><b>Solicitar EPI</b></div>
+                <div class="menu-card" onclick="goTo('step-desvio')"><span>⚠️</span><b>Relatar Desvio</b></div>
+                <div class="menu-card" onclick="goTo('step-troca')"><span>🔄</span><b>Trocar Turno</b></div>
+                <div class="menu-card" onclick="checkFerias()"><span>📅</span><b>Minhas Férias</b></div>
+            </div>
+            <button class="btn btn-back" onclick="fazerLogout()" style="border:none; text-decoration: underline; font-weight:700; margin-top: 20px;">Sair da Conta</button>
+        </div>
+
+        <div id="step-epi" class="step">
+            <h3>Solicitação de EPI</h3>
+            <label>Selecione o Item</label>
+            <select id="select-epi" onchange="updateEpiFields()"></select>
+            <div id="epi-dinamico" class="form-col"></div>
+            <button class="btn btn-orange" style="background: white; color: var(--vli-laranja);" onclick="addItem()">+ Adicionar à Lista</button>
+
+            <div id="cart-area" class="form-col" style="display:none; margin-top:15px; border-top:1.5px solid rgba(255,255,255,0.2); padding-top:20px;">
+                <label>Itens Selecionados:</label>
+                <div id="cart-list" class="list-col"></div>
+                <button class="btn btn-orange" onclick="sendEPI()">Finalizar Pedido</button>
+            </div>
+            <button class="btn btn-back" onclick="goToMenu()">Voltar ao Menu</button>
+        </div>
+
+        <div id="step-desvio" class="step">
+            <h3>Relatar Desvio</h3>
+            <div id="desvio-form" class="form-col">
+                <label>Local da Ocorrência</label>
+                <select id="d-local">
+                    <option>Pátio de Cima</option>
+                    <option>Pátio de Baixo</option>
+                    <option>Terminal do Carvão</option>
+                    <option>Oficina</option>
+                    <option>Estação</option>
+                </select>
+
+                <label>Quando ocorreu?</label>
+                <select id="d-tempo-tipo" onchange="$('div-manual').style.display=(this.value==='manual'?'grid':'none')">
+                    <option value="agora">Agora</option>
+                    <option value="manual">Selecionar Horário</option>
+                </select>
+
+                <div id="div-manual" class="grid-2col" style="display:none;">
+                    <div>
+                        <label>Data</label>
+                        <input type="date" id="d-data-manual">
+                    </div>
+                    <div>
+                        <label>Hora</label>
+                        <input type="time" id="d-hora-manual">
+                    </div>
+                </div>
+
+                <label>Descrição do Evento</label>
+                <textarea id="d-desc" rows="4" placeholder="Descreva os detalhes do que aconteceu..."></textarea>
+
+                <button class="btn btn-orange" onclick="sendDesvio()">Registrar Desvio</button>
+                <button class="btn btn-back" onclick="verMeusDesvios()">🔍 Ver Meu Histórico</button>
+            </div>
+
+            <div id="desvio-lista" class="list-col" style="display:none; border-top: 1.5px solid rgba(255,255,255,0.2); padding-top: 15px;">
+                <p style="font-size:11px; color:rgba(255,255,255,0.8); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Seu Histórico:</p>
+                <div id="container-historico-desvios" class="list-col"></div>
+                <button class="btn btn-back" onclick="$('desvio-lista').style.display='none'; $('desvio-form').style.display='flex';">Voltar ao Formulário</button>
+            </div>
+            <button class="btn btn-back" onclick="goToMenu()">Voltar ao Menu</button>
+        </div>
+
+        <div id="step-troca" class="step">
+            <h3>Troca de Turno</h3>
+            <div id="troca-form" class="form-col">
+
+                <div class="info-box" style="padding: 12px 20px;">
+                    <b style="color: var(--vli-azul); font-size: 13px;">Seus Dados (Solicitante):</b><br>
+                    <span id="t-nome1" style="color: #1E293B; font-weight: 600;"></span><br>
+                    <span id="t-mat1" style="color: #64748B; font-size: 13px; font-weight: 600;"></span>
+                </div>
+
+                <div class="grid-2col">
+                    <div>
+                        <label>Data da Sua Saída</label>
+                        <input type="date" id="t-dt1">
+                    </div>
+                    <div>
+                        <label>Sua Escala</label>
+                        <select id="t-esc1"></select>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Horário</label>
+                    <select id="t-hr1"></select>
+                </div>
+
+                <div>
+                    <label>Seu Inspetor</label>
+                    <select id="t-insp1"></select>
+                </div>
+
+                <hr style="border: 0; border-top: 1.5px solid rgba(255,255,255,0.2); margin: 5px 0;">
+
+                <div>
+                    <label>Nome do Colega (Cobertura)</label>
+                    <input type="text" id="t-nome2" placeholder="Com quem vai trocar?">
+                </div>
+
+                <div>
+                    <label>Matrícula do Colega</label>
+                    <input type="tel" id="t-mat2" placeholder="Ex: 12345" maxlength="8">
+                </div>
+
+                <div class="grid-2col">
+                    <div>
+                        <label>Data da Cobertura</label>
+                        <input type="date" id="t-dt2">
+                    </div>
+                    <div>
+                        <label>Escala Dele</label>
+                        <select id="t-esc2"></select>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Horário</label>
+                    <select id="t-hr2"></select>
+                </div>
+
+                <div>
+                    <label>Inspetor do Colega</label>
+                    <select id="t-insp2"></select>
+                </div>
+
+                <hr style="border: 0; border-top: 1.5px solid rgba(255,255,255,0.2); margin: 5px 0;">
+
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: var(--radius-md); border-left: 4px solid var(--vli-laranja); margin-top: 10px;">
+                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.9); line-height: 1.6;">
+                        <b style="color: #fff; font-size: 13px;">Estou ciente que:</b><br>
+                        • A solicitação só será considerada aprovada após a assinatura do Supervisor<br>
+                        • A solicitação deverá ser feita com antecedência mínima de 15 dias<br>
+                        • A troca deverá ser realizada dentro do mesmo mês<br>
+                        • Limite máximo de 02 (duas) trocas por mês
+                    </p>
+                </div>
+
+                <button class="btn btn-orange" id="btn-troca" onclick="sendTroca()">Registrar Solicitação</button>
+                <button class="btn btn-back" onclick="verMinhasTrocas()">🔍 Ver Minhas Solicitações</button>
+            </div>
+
+            <div id="troca-lista" class="list-col" style="display:none; border-top: 1.5px solid rgba(255,255,255,0.2); padding-top: 15px;">
+                <p style="font-size:11px; color:rgba(255,255,255,0.8); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Suas Solicitações:</p>
+                <div id="container-historico-trocas" class="list-col"></div>
+                <button class="btn btn-back" onclick="$('troca-lista').style.display='none'; $('troca-form').style.display='flex';">Voltar ao Formulário</button>
+            </div>
+            <button class="btn btn-back" onclick="goToMenu()">Voltar ao Menu</button>
+        </div>
+
+        <div id="step-ferias" class="step">
+            <h3>Minhas Férias</h3>
+            <div id="ferias-view-agendada" style="display:none;">
+                <div class="info-box">
+                    <b style="color: var(--vli-azul); font-size: 15px;">Sugestão já registrada!</b><br><br>
+                    <div id="detalhe-ferias" style="color: #1E293B;"></div>
+                    <p style="margin-top:15px; font-size: 12px; font-weight:700; color:var(--vli-erro)">* Para alterações, contate a supervisão.</p>
+                </div>
+            </div>
+            <div id="ferias-form-sugestao" class="form-col">
+                <label>Quantidade de Dias</label>
+                <select id="f-dias">
+                    <option value="30">30 Dias</option>
+                    <option value="20">20 Dias</option>
+                </select>
+                <label>1ª Opção (Mês/Ano)</label><input type="month" id="f-op1">
+                <label>2ª Opção (Mês/Ano)</label><input type="month" id="f-op2">
+                <label>3ª Opção (Mês/Ano)</label><input type="month" id="f-op3">
+                <button class="btn btn-orange" onclick="sendFerias()">Enviar Sugestão</button>
+            </div>
+            <button class="btn btn-back" onclick="goToMenu()">Voltar ao Menu</button>
+        </div>
+
+        <div id="step-sucesso" class="step" style="text-align:center; padding-top: 20px;">
+            <div style="font-size:60px;">✅</div>
+            <h2 style="color: #fff; margin-top: 16px; font-weight: 800;">Registro Concluído!</h2>
+            <p style="color:rgba(255,255,255,0.8); font-size: 15px; max-width: 85%; margin: 10px auto 0; line-height: 1.5;">Seus dados foram processados com sucesso no sistema.</p>
+            <button class="btn btn-orange" style="margin-top: 20px;" onclick="goToMenu()">Retornar ao Menu</button>
+        </div>
+
+        <div class="watermark">Desenvolvido por M.Custodio</div>
+    </div>
+</div>
+
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text" style="color: #ffffff; margin-top: 16px; font-weight: 600; font-size: 14px;">Carregando...</div>
+</div>
+
+<script>
+    const URL_API = 'https://script.google.com/macros/s/AKfycbwJkRKk8PbLb0kMJ3nbN1s6k2I5ftZk3nBZ4mjOGPQ5VP8GSL2V6m7pJ_0R80CX2w_6/exec';
+
+    // Atalho curto para document.getElementById, usado dezenas de vezes no arquivo.
+    // Deixa o código mais enxuto e mais rápido de ler/manter.
+    const $ = id => document.getElementById(id);
+
+    // Listas fixas centralizadas: antes ficavam duplicadas em dois <select> no HTML
+    // (um para o solicitante, outro para o colega). Agora existe um só lugar pra editar.
+    const ESCALAS = ['A', 'B', 'C', 'D'];
+    const HORARIOS = ['06 às 18', '18 às 06'];
+    const INSPETORES = ['Herques', 'Cátia', 'Gilberto', 'Yuri', 'Rafael Ramos'];
+
+    let db = { funcionarios: {}, epis: [], ferias: {}, desvios: [] };
+    let user = { mat: "", nome: "" };
+    let cart = [];
+    let deferredPrompt;
+    let enviando = false; // trava simples pra evitar duplo clique/duplo envio em qualquer formulário
+
+    // Escapa qualquer texto antes de jogar em innerHTML. Tudo que vem do banco
+    // (descrição de desvio, nomes, opções de EPI) passa por aqui antes de ser exibido,
+    // pra evitar que alguém injete <script>/<img onerror> num campo de texto livre
+    // e isso rode na tela de quem visualizar depois (histórico, saudação, etc).
+    function esc(str) {
+        return String(str ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    function buildOptions(values, defaultValue) {
+        return values.map(v => `<option value="${v}"${v === defaultValue ? ' selected' : ''}>${v}</option>`).join('');
+    }
+
+    // Ponto único de envio ao Apps Script. Todas as funções sendX só montam o payload
+    // e chamam isto, em vez de repetir o mesmo objeto fetch() quatro vezes no arquivo.
+    function postToApi(tipo, payload) {
+        return fetch(URL_API, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ tipo, ...payload }) });
+    }
+
+    function popularSelectsFixos() {
+        const optEsc = buildOptions(ESCALAS);
+        const optHr = buildOptions(HORARIOS, '06 às 18');
+        const optInsp = buildOptions(INSPETORES, 'Herques');
+
+        $('t-esc1').innerHTML = optEsc;
+        $('t-esc2').innerHTML = optEsc;
+        $('t-hr1').innerHTML = optHr;
+        $('t-hr2').innerHTML = optHr;
+        $('t-insp1').innerHTML = optInsp;
+        $('t-insp2').innerHTML = optInsp;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        popularSelectsFixos();
+
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const banner = $('install-banner');
+
+        if (!isStandalone) {
+            const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            if (isIos) {
+                $('install-text').innerHTML = 'Adicione o Portal VIC à tela inicial <span>Toque no botão de Compartilhar <b style="font-size:15px; color:var(--vli-laranja);">⎋</b> do Safari e escolha "Adicionar à Tela de Início"</span>';
+                $('install-button').style.display = 'none';
+                banner.style.display = 'block';
+            } else {
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    banner.style.display = 'block';
+                });
+
+                setTimeout(() => {
+                    if (!deferredPrompt && banner.style.display !== 'block') {
+                        $('install-text').innerHTML = 'Instale o Portal VIC no seu Android <span>Toque nos 3 pontinhos <b style="font-size:16px; color:var(--vli-laranja);">⋮</b> do navegador e selecione "Instalar aplicativo" ou "Adicionar à tela inicial"</span>';
+                        $('install-button').style.display = 'none';
+                        banner.style.display = 'block';
+                    }
+                }, 2000);
+            }
+        }
+
+        const savedMat = localStorage.getItem('vic_user_mat');
+        const savedNome = localStorage.getItem('vic_user_nome');
+
+        if (savedMat && savedNome) {
+            initSystem();
+        }
+    });
+
+    function triggerPwaInstall() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('Usuário aceitou a instalação.');
+                }
+                $('install-banner').style.display = 'none';
+                deferredPrompt = null;
+            });
+        }
+    }
+
+    async function initSystem() {
+        if (!navigator.onLine) {
+            alert("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+            return;
+        }
+        showLoad("Sincronizando Dados...");
+        try {
+            const r = await fetch(URL_API);
+            const json = await r.json();
+            db = json.dados;
+            if (!db.desvios) db.desvios = [];
+
+            const sel = $('select-epi');
+            const opts = ['<option value="">Selecione o EPI...</option>'];
+            db.epis.forEach(e => opts.push(`<option value="${esc(e.nome)}">${esc(e.nome)}</option>`));
+            sel.innerHTML = opts.join('');
+
+            const savedMat = localStorage.getItem('vic_user_mat');
+            const savedNome = localStorage.getItem('vic_user_nome');
+
+            // Revalida a matrícula salva contra a base atualizada: se o funcionário
+            // não existe mais (desligado, matrícula alterada), força novo login
+            // em vez de confiar cegamente no que estava no localStorage.
+            const aindaValido = savedMat && (db.funcionarios[savedMat] || db.funcionarios[parseInt(savedMat)]);
+
+            if (savedMat && savedNome && aindaValido) {
+                user = { mat: savedMat, nome: savedNome };
+                exibirSaudacao();
+                hideLoad();
+                goTo('step-menu');
+            } else {
+                if (savedMat && !aindaValido) {
+                    localStorage.removeItem('vic_user_mat');
+                    localStorage.removeItem('vic_user_nome');
+                }
+                hideLoad();
+                goTo('step-login');
+            }
+        } catch (e) {
+            hideLoad();
+            alert("Erro ao carregar os dados do servidor corporativo. Tente novamente em instantes.");
+        }
+    }
+
+    function exibirSaudacao() {
+        const hr = new Date().getHours();
+        let saudacao = "Boa noite";
+        if (hr >= 5 && hr < 12) saudacao = "Bom dia";
+        else if (hr >= 12 && hr < 18) saudacao = "Boa tarde";
+
+        const primeiroNome = user.nome.split(' ')[0];
+
+        $('user-pill').innerHTML = `👤 ${saudacao}, <b>${esc(primeiroNome)}</b>`;
+        $('user-pill').style.display = "block";
+
+        if ($('t-nome1')) {
+            $('t-nome1').innerText = user.nome;
+            $('t-mat1').innerText = "Matrícula: " + user.mat;
+        }
+    }
+
+    function handleLogin() {
+        const m = $('input-mat').value.trim();
+        const func = db.funcionarios[m] || db.funcionarios[parseInt(m)];
+        if (func) {
+            user = { mat: m, nome: func };
+
+            localStorage.setItem('vic_user_mat', user.mat);
+            localStorage.setItem('vic_user_nome', user.nome);
+
+            exibirSaudacao();
+            goTo('step-menu');
+        } else {
+            alert("Matrícula não localizada na base de dados.");
+        }
+    }
+
+    function fazerLogout() {
+        localStorage.removeItem('vic_user_mat');
+        localStorage.removeItem('vic_user_nome');
+        location.reload();
+    }
+
+    function updateEpiFields() {
+        const item = db.epis.find(i => i.nome === $('select-epi').value);
+        const area = $('epi-dinamico');
+        if (!item || !item.label) { area.innerHTML = ""; return; }
+
+        const partes = [`<div><label>${esc(item.label)}</label><select id="o1" style="margin-top:16px;">${
+            String(item.opcoes).split(';').filter(o => o.trim()).map(o => `<option value="${esc(o.trim())}">${esc(o.trim())}</option>`).join('')
+        }</select></div>`];
+
+        if (item.label2 && item.opcoes2) {
+            partes.push(`<div><label>${esc(item.label2)}</label><select id="o2" style="margin-top:16px;">${
+                String(item.opcoes2).split(';').filter(o => o.trim()).map(o => `<option value="${esc(o.trim())}">${esc(o.trim())}</option>`).join('')
+            }</select></div>`);
+        }
+
+        area.innerHTML = partes.join('');
+    }
+
+    function addItem() {
+        const sel = $('select-epi');
+        if (!sel.value) return;
+        const val1 = $('o1') ? $('o1').value : "";
+        const val2 = $('o2') ? $('o2').value : "";
+        cart.push({ n: sel.value, det: `${val1} ${val2}`.trim(), o1: val1, o2: val2 });
+        sel.value = "";
+        $('epi-dinamico').innerHTML = "";
+        renderCart();
+    }
+
+    function renderCart() {
+        const area = $('cart-area');
+        area.style.display = cart.length ? 'flex' : 'none';
+        $('cart-list').innerHTML = cart.map((it, i) => `
+            <div class="cart-item">
+                <div><b style="color:var(--vli-azul); font-size:15px;">${esc(it.n)}</b><br><small style="color:#64748B;">${esc(it.det)}</small></div>
+                <button onclick="cart.splice(${i},1);renderCart()" style="border:none;background:none;color:var(--vli-erro);font-size:18px;cursor:pointer;padding:4px;">✕</button>
+            </div>`).join('');
+    }
+
+    async function sendEPI() {
+        if (!cart.length) return;
+        if (!navigator.onLine) return alert("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+        if (enviando) return; // evita disparar o pedido duas vezes com clique duplo
+        enviando = true;
+
+        showLoad("Processando Pedido...");
+        const falhas = [];
+        for (const it of cart) {
+            try {
+                await postToApi("EPI", { funcionario: user.nome, matricula: user.mat, epi: it.n, detalhes: it.det, opcao: it.o1, opcao2: it.o2, protocolo: "EPI" + Date.now() });
+            } catch (e) {
+                falhas.push(it); // guarda o item que falhou por queda de conexão, em vez de descartar
+            }
+        }
+        hideLoad();
+        enviando = false;
+
+        if (falhas.length) {
+            cart = falhas;
+            renderCart();
+            alert(`${falhas.length} item(ns) não foram enviados por falha de conexão e continuam na sua lista. Tente novamente.`);
+        } else {
+            cart = [];
+            goTo('step-sucesso');
+        }
+    }
+
+    async function sendDesvio() {
+        const desc = $('d-desc').value.trim();
+        if (!desc) return alert("Por favor, descreva o desvio.");
+        if (!navigator.onLine) return alert("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+        if (enviando) return; // evita clique duplo enviar o mesmo desvio duas vezes
+        enviando = true;
+
+        showLoad("Registrando...");
+        let dF = new Date().toLocaleDateString('pt-BR');
+        let hF = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        if ($('d-tempo-tipo').value === 'manual') {
+            dF = $('d-data-manual').value.split('-').reverse().join('/');
+            hF = $('d-hora-manual').value;
+        }
+        try {
+            await postToApi("DESVIO", { nome: user.nome, matricula: user.mat, local: $('d-local').value, descricao: desc, dataFato: dF, horaFato: hF });
+            $('d-desc').value = "";
+            hideLoad(); goTo('step-sucesso');
+        } catch (e) {
+            hideLoad();
+            alert("Erro ao registrar desvio. Verifique sua conexão e tente novamente.");
+        } finally {
+            enviando = false;
+        }
+    }
+
+    // Validação leve, só pra evitar ida ao servidor com dados incompletos/fora das regras.
+    // Não substitui a conferência final feita pelo Supervisor.
+    function validarTroca(dt1Str, dt2Str) {
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const dt1 = new Date(dt1Str + 'T00:00:00');
+        const dt2 = new Date(dt2Str + 'T00:00:00');
+
+        const diffDias = Math.round((dt1 - hoje) / 86400000);
+        if (diffDias < 15) return "A troca deve ser solicitada com no mínimo 15 dias de antecedência.";
+        if (dt1.getFullYear() !== dt2.getFullYear() || dt1.getMonth() !== dt2.getMonth()) {
+            return "A data de saída e a de compensação devem estar dentro do mesmo mês.";
+        }
+        return null;
+    }
+
+    async function sendTroca() {
+        const nome2 = $('t-nome2').value.trim();
+        const mat2 = $('t-mat2').value.trim();
+
+        const dt1 = $('t-dt1').value;
+        const hr1 = $('t-hr1').value;
+        const esc1 = $('t-esc1').value;
+        const insp1 = $('t-insp1').value;
+
+        const dt2 = $('t-dt2').value;
+        const hr2 = $('t-hr2').value;
+        const esc2 = $('t-esc2').value;
+        const insp2 = $('t-insp2').value;
+
+        if (!nome2 || !mat2 || !dt1 || !dt2) {
+            return alert("Por favor, preencha todas as datas e as matrículas.");
+        }
+
+        const erro = validarTroca(dt1, dt2);
+        if (erro) return alert(erro);
+
+        if (!navigator.onLine) return alert("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+        if (enviando) return; // evita registrar a mesma troca duas vezes com clique duplo
+        enviando = true;
+
+        showLoad("Registrando Troca...");
+
+        const d1F = dt1.split('-').reverse().join('/');
+        const d2F = dt2.split('-').reverse().join('/');
+
+        try {
+            await postToApi("TROCA", {
+                matricula: user.mat,
+                solicitante1: user.nome,
+                matricula2: mat2,
+                solicitante2: nome2,
+                dataTroca: d1F,
+                horario1: hr1,
+                escala1: esc1,
+                inspetor1: insp1,
+                dataCompensacao: d2F,
+                horario2: hr2,
+                escala2: esc2,
+                inspetor2: insp2,
+                supervisor: ""
+            });
+
+            $('t-nome2').value = "";
+            $('t-mat2').value = "";
+            $('t-dt1').value = "";
+            $('t-dt2').value = "";
+            popularSelectsFixos();
+
+            hideLoad();
+            goTo('step-sucesso');
+        } catch (e) {
+            hideLoad();
+            alert("Erro ao registrar a troca de turno. Verifique sua conexão e tente novamente.");
+        } finally {
+            enviando = false;
+        }
+    }
+
+    // Monta o status a partir da coluna N (Supervisor) da planilha Trocas:
+    // vazio = pendente, "Sim" = aprovada, "Não"/"Nao" = reprovada.
+    function statusTroca(valor) {
+        const v = String(valor || '').trim().toLowerCase();
+        if (v === 'sim') return { texto: '✅ Aprovada', cor: 'var(--vli-verde)' };
+        if (v === 'não' || v === 'nao') return { texto: '❌ Reprovada', cor: 'var(--vli-erro)' };
+        return { texto: '⏳ Aguardando Aprovação', cor: '#F59E0B' };
+    }
+
+    function verMinhasTrocas() {
+        $('troca-form').style.display = 'none';
+        $('troca-lista').style.display = 'flex';
+        const minhas = (db.trocas || []).filter(t => String(t.matricula1) === String(user.mat));
+
+        $('container-historico-trocas').innerHTML = minhas.length
+            ? [...minhas].reverse().map(t => {
+                const st = statusTroca(t.supervisor);
+                return `
+                <div class="hist-item">
+                    <b>🔄 Troca com ${esc(t.solicitante2)} (Mat. ${esc(t.matricula2)})</b>
+                    <span>Sua saída: ${esc(t.dataTroca)} às ${esc(t.horario1)} • Cobertura: ${esc(t.dataCompensacao)} às ${esc(t.horario2)}</span>
+                    <span style="color:${st.cor}; font-weight:700;">${st.texto}</span>
+                </div>`;
+            }).join('')
+            : "<p class='empty-msg'>Nenhuma solicitação de troca encontrada.</p>";
+    }
+
+    function verMeusDesvios() {
+        $('desvio-form').style.display = 'none';
+        $('desvio-lista').style.display = 'flex';
+        const meusDesvios = (db.desvios || []).filter(d => String(d.matricula) === String(user.mat));
+
+        $('container-historico-desvios').innerHTML = meusDesvios.length
+            ? [...meusDesvios].reverse().map(d => `
+                <div class="hist-item">
+                    <b>📅 ${esc(d.dataFato)} às ${esc(d.horaFato)} - ${esc(d.local)}</b>
+                    <span>${esc(d.descricao)}</span>
+                </div>`).join('')
+            : "<p class='empty-msg'>Nenhum registro encontrado no seu histórico.</p>";
+    }
+
+    function checkFerias() {
+        const reg = db.ferias[user.mat];
+        if (reg) {
+            $('ferias-view-agendada').style.display = 'block';
+            $('ferias-form-sugestao').style.display = 'none';
+            const formatar = (v) => {
+                if (!v) return "";
+                const p = v.split('T')[0].split('-');
+                return p.length >= 2 ? p[1] + "/" + p[0] : v;
+            };
+            let h = `<b>Período Solicitado:</b> ${esc(reg.dias)} dias<br><br><b>1ª Opção:</b> ${esc(formatar(reg.op1))}`;
+            if (reg.op2) h += `<br><b>2ª Opção:</b> ${esc(formatar(reg.op2))}`;
+            if (reg.op3) h += `<br><b>3ª Opção:</b> ${esc(formatar(reg.op3))}`;
+            $('detalhe-ferias').innerHTML = h;
+        } else {
+            $('ferias-view-agendada').style.display = 'none';
+            $('ferias-form-sugestao').style.display = 'flex';
+        }
+        goTo('step-ferias');
+    }
+
+    async function sendFerias() {
+        const op1 = $('f-op1').value;
+        if (!op1) return alert("Selecione obrigatoriamente a 1ª opção de data.");
+        if (!navigator.onLine) return alert("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+        if (enviando) return; // evita enviar a mesma sugestão de férias duas vezes
+        enviando = true;
+
+        showLoad("Enviando...");
+        try {
+            await postToApi("FERIAS", { nome: user.nome, matricula: user.mat, dias: $('f-dias').value, op1: op1, op2: $('f-op2').value, op3: $('f-op3').value });
+            hideLoad(); goTo('step-sucesso');
+        } catch (e) {
+            hideLoad();
+            alert("Erro ao enviar solicitação. Verifique sua conexão e tente novamente.");
+        } finally {
+            enviando = false;
+        }
+    }
+
+    function showLoad(t) {
+        $('loading-text').innerText = t;
+        $('loading-overlay').style.display = 'flex';
+        document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+    }
+    function hideLoad() {
+        $('loading-overlay').style.display = 'none';
+        document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+    }
+
+    function goTo(id) {
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        $(id).classList.add('active');
+        window.scrollTo(0, 0);
+    }
+    function goToMenu() { goTo('step-menu'); }
+
+    if ('serviceWorker' in navigator) {
+        let refreshingPage = false;
+
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+                .then(reg => {
+                    console.log('PWA pronto.', reg);
+
+                    // Força uma checagem de atualização assim que a página carrega
+                    reg.update();
+
+                    // E também toda vez que o usuário volta pro app (ex: minimizou e reabriu,
+                    // trocou de aba e voltou), pra pegar uma versão nova publicada nesse meio tempo
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible') reg.update();
+                    });
+                })
+                .catch(err => console.error('Erro PWA:', err));
+        });
+
+        // Quando a nova versão do Service Worker assume o controle da página,
+        // recarrega automaticamente para exibir o conteúdo atualizado
+        // (é isso que elimina a necessidade do usuário limpar dados de navegação)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshingPage) return;
+            refreshingPage = true;
+            window.location.reload();
+        });
+    }
+</script>
+</body>
+</html>
