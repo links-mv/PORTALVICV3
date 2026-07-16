@@ -1,0 +1,33 @@
+{
+  "id": "/index.html",
+  "short_name": "Portal VIC",
+  "name": "Portal VIC",
+  "description": "Portal do colaborador VLI - VIC: solicitação de EPI, relato de desvios, troca de turno e férias.",
+  "icons": [
+    {
+      "src": "logo-pwa.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-pwa.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-pwa.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "scope": "./",
+  "background_color": "#F4F7F9",
+  "theme_color": "#0085B2",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "pt-BR"
+}
